@@ -15,11 +15,27 @@ function getNormalizedBaseUrl() {
 
 export const BASE_URL = getNormalizedBaseUrl();
 
+async function safeFetchJson(url, options = {}) {
+  const res = await fetch(url, options);
+  const contentType = res.headers.get('content-type') || '';
+  
+  if (contentType.includes('text/html')) {
+    throw new Error(
+      `Received HTML instead of API response from "${url}". Make sure VITE_API_URL is set in Vercel and your Railway backend is live.`
+    );
+  }
+  
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || errorBody.message || `HTTP ${res.status}: ${res.statusText}`);
+  }
+  
+  return await res.json();
+}
+
 export async function fetchStudents() {
   try {
-    const res = await fetch(`${BASE_URL}/students`);
-    if (!res.ok) throw new Error('Failed to fetch students');
-    const data = await res.json();
+    const data = await safeFetchJson(`${BASE_URL}/students`);
     return data.students || [];
   } catch (err) {
     console.error('API Error (fetchStudents):', err);
@@ -30,9 +46,7 @@ export async function fetchStudents() {
 export async function fetchAssignments(studentId = null) {
   try {
     const url = studentId ? `${BASE_URL}/assignments?studentId=${studentId}` : `${BASE_URL}/assignments`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('Failed to fetch assignments');
-    const data = await res.json();
+    const data = await safeFetchJson(url);
     return data.assignments || [];
   } catch (err) {
     console.error('API Error (fetchAssignments):', err);
@@ -42,13 +56,11 @@ export async function fetchAssignments(studentId = null) {
 
 export async function createAssignment(assignmentData) {
   try {
-    const res = await fetch(`${BASE_URL}/assignments`, {
+    const data = await safeFetchJson(`${BASE_URL}/assignments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(assignmentData)
     });
-    if (!res.ok) throw new Error('Failed to create assignment');
-    const data = await res.json();
     return data.assignment;
   } catch (err) {
     console.error('API Error (createAssignment):', err);
@@ -95,19 +107,11 @@ export async function extractPdfAssignment(fileOrData, fileName = '') {
       }
     }
 
-    const res = await fetch(`${BASE_URL}/assignments/extract-pdf`, {
+    return await safeFetchJson(`${BASE_URL}/assignments/extract-pdf`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
-    });
-
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.error || 'Failed to extract PDF data');
-    }
-
-    const data = await res.json();
-    return data.metadata;
+    }).then(d => d.metadata);
   } catch (err) {
     console.error('API Error (extractPdfAssignment):', err);
     throw err;
@@ -116,9 +120,7 @@ export async function extractPdfAssignment(fileOrData, fileName = '') {
 
 export async function fetchGroups() {
   try {
-    const res = await fetch(`${BASE_URL}/groups`);
-    if (!res.ok) throw new Error('Failed to fetch groups');
-    const data = await res.json();
+    const data = await safeFetchJson(`${BASE_URL}/groups`);
     return data.groups || [];
   } catch (err) {
     console.error('API Error (fetchGroups):', err);
@@ -128,16 +130,11 @@ export async function fetchGroups() {
 
 export async function createStudyGroup(groupData) {
   try {
-    const res = await fetch(`${BASE_URL}/groups`, {
+    const data = await safeFetchJson(`${BASE_URL}/groups`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(groupData)
     });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Failed to create study group');
-    }
-    const data = await res.json();
     return data.group;
   } catch (err) {
     console.error('API Error (createStudyGroup):', err);
@@ -150,9 +147,7 @@ export async function fetchMatches(studentId, assignmentId = null) {
     const url = assignmentId 
       ? `${BASE_URL}/matches/${studentId}?assignmentId=${assignmentId}` 
       : `${BASE_URL}/matches/${studentId}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('Failed to fetch matches');
-    const data = await res.json();
+    const data = await safeFetchJson(url);
     return data.matches || [];
   } catch (err) {
     console.error('API Error (fetchMatches):', err);
