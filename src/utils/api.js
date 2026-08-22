@@ -1,4 +1,5 @@
-const BASE_URL = '/api';
+const RAW_API_URL = import.meta.env.VITE_API_URL || '';
+export const BASE_URL = RAW_API_URL ? `${RAW_API_URL.replace(/\/$/, '')}/api` : '/api';
 
 export async function fetchStudents() {
   try {

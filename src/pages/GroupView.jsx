@@ -20,6 +20,7 @@ import {
   Award
 } from 'lucide-react';
 import { generateStudyBotReply } from '../utils/studyBot';
+import { BASE_URL } from '../utils/api';
 
 export default function GroupView({ group, onBack, onUpdateGroup }) {
   const { currentStudent } = useAuth();
@@ -48,7 +49,7 @@ export default function GroupView({ group, onBack, onUpdateGroup }) {
     
     async function loadGroupData() {
       try {
-        const res = await fetch(`/api/groups/${group.id}`);
+        const res = await fetch(`${BASE_URL}/groups/${group.id}`);
         if (res.ok) {
           const data = await res.json();
           if (data.group) setActiveGroup(data.group);
@@ -109,7 +110,7 @@ export default function GroupView({ group, onBack, onUpdateGroup }) {
 
     // 2. Persist to API backend without touching chat messages state
     try {
-      const res = await fetch(`/api/groups/${activeGroup.id}/milestones/${milestoneId}/toggle`, {
+      const res = await fetch(`${BASE_URL}/groups/${activeGroup.id}/milestones/${milestoneId}/toggle`, {
         method: 'PATCH'
       });
       if (res.ok) {
@@ -137,7 +138,7 @@ export default function GroupView({ group, onBack, onUpdateGroup }) {
     setNewMilestoneTitle('');
 
     try {
-      const res = await fetch(`/api/groups/${activeGroup.id}/milestones`, {
+      const res = await fetch(`${BASE_URL}/groups/${activeGroup.id}/milestones`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(milestonePayload)
@@ -178,7 +179,7 @@ export default function GroupView({ group, onBack, onUpdateGroup }) {
     }));
 
     try {
-      const res = await fetch(`/api/groups/${activeGroup.id}/resources`, {
+      const res = await fetch(`${BASE_URL}/groups/${activeGroup.id}/resources`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(resourcePayload)
@@ -219,7 +220,7 @@ export default function GroupView({ group, onBack, onUpdateGroup }) {
 
     // 2. Persist message to backend API
     try {
-      await fetch(`/api/groups/${activeGroup.id}/messages`, {
+      await fetch(`${BASE_URL}/groups/${activeGroup.id}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newMsg)
@@ -258,7 +259,7 @@ export default function GroupView({ group, onBack, onUpdateGroup }) {
         setMessages(prev => [...prev, botReply]);
 
         try {
-          await fetch(`/api/groups/${activeGroup.id}/messages`, {
+          await fetch(`${BASE_URL}/groups/${activeGroup.id}/messages`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(botReply)
