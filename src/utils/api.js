@@ -1,5 +1,19 @@
-const RAW_API_URL = import.meta.env.VITE_API_URL || '';
-export const BASE_URL = RAW_API_URL ? `${RAW_API_URL.replace(/\/$/, '')}/api` : '/api';
+// Normalizes the base API URL (handles missing protocol, trailing slashes, or missing /api path)
+function getNormalizedBaseUrl() {
+  let url = (import.meta.env.VITE_API_URL || '').trim();
+  if (!url) return '/api';
+  
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = `https://${url}`;
+  }
+  url = url.replace(/\/+$/, '');
+  if (!url.endsWith('/api')) {
+    url = `${url}/api`;
+  }
+  return url;
+}
+
+export const BASE_URL = getNormalizedBaseUrl();
 
 export async function fetchStudents() {
   try {
