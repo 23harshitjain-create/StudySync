@@ -34,7 +34,7 @@ export function AuthProvider({ children }) {
     init();
   }, []);
 
-  // Switch between demo students
+  // Switch between student profiles
   const switchStudent = (studentId) => {
     const found = students.find((s) => s.id === studentId);
 

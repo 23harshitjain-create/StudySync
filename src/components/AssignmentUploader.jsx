@@ -20,7 +20,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { createAssignment, extractPdfAssignment } from '../utils/api';
 
-// Sample presets for quick hackathon judging / 1-click test
+// Sample presets for quick testing / 1-click sample templates
 const SAMPLE_PRESETS = [
   {
     label: 'CS 330: Virtual Memory Lab',
@@ -365,9 +365,9 @@ export default function AssignmentUploader({ isOpen, onClose, onTaskCreated }) {
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-semibold text-slate-300 flex items-center space-x-1.5">
                     <Zap className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Quick Hackathon Test: Try Sample Assignment Presets</span>
+                    <span>Quick Start: Try Sample Assignment Presets</span>
                   </p>
-                  <span className="text-[10px] text-slate-500">1-Click Test</span>
+                  <span className="text-[10px] text-slate-500">1-Click Sample</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">

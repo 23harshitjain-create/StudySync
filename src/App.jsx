@@ -175,7 +175,7 @@ function MainApp() {
             StudySync • AI-Powered Academic Collaboration Platform
           </p>
           <p className="text-slate-500">
-            PromptWars Hackathon "Student Life" Challenge
+            Intelligent Peer Matching & Academic Collaboration
           </p>
         </div>
       </footer>

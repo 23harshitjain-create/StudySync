@@ -83,7 +83,7 @@ export default function Dashboard({
 
                   <span className="px-2.5 py-1 rounded-lg bg-surface-800/80 text-slate-300 border border-slate-700/60 flex items-center space-x-1.5">
                     <Clock className="w-3.5 h-3.5 text-teal-400" />
-                    <span>Slots: {currentStudent.preferredTimes?.join(', ')}</span>
+                    <span>Slots: {Array.isArray(currentStudent.preferredTimes) ? currentStudent.preferredTimes.join(', ') : (currentStudent.preferredTimes || 'Flexible')}</span>
                   </span>
                 </div>
               </div>
