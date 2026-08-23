@@ -2,7 +2,7 @@
 function getNormalizedBaseUrl() {
   let url = (import.meta.env.VITE_API_URL || '').trim();
   if (!url) return '/api';
-  
+
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
     url = `https://${url}`;
   }
@@ -18,18 +18,18 @@ export const BASE_URL = getNormalizedBaseUrl();
 async function safeFetchJson(url, options = {}) {
   const res = await fetch(url, options);
   const contentType = res.headers.get('content-type') || '';
-  
+
   if (contentType.includes('text/html')) {
     throw new Error(
       `Received HTML instead of API response from "${url}". Make sure VITE_API_URL is set in Vercel and your Railway backend is live.`
     );
   }
-  
+
   if (!res.ok) {
     const errorBody = await res.json().catch(() => ({}));
     throw new Error(errorBody.error || errorBody.message || `HTTP ${res.status}: ${res.statusText}`);
   }
-  
+
   return await res.json();
 }
 
@@ -144,8 +144,8 @@ export async function createStudyGroup(groupData) {
 
 export async function fetchMatches(studentId, assignmentId = null) {
   try {
-    const url = assignmentId 
-      ? `${BASE_URL}/matches/${studentId}?assignmentId=${assignmentId}` 
+    const url = assignmentId
+      ? `${BASE_URL}/matches/${studentId}?assignmentId=${assignmentId}`
       : `${BASE_URL}/matches/${studentId}`;
     const data = await safeFetchJson(url);
     return data.matches || [];
@@ -162,5 +162,21 @@ export async function resetDemoData() {
   } catch (err) {
     console.error('API Error (resetDemoData):', err);
     return { success: false };
+  }
+}
+export async function updateStudent(studentId, updates) {
+  try {
+    const data = await safeFetchJson(`${BASE_URL}/students/${studentId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updates)
+    });
+
+    return data.student;
+  } catch (err) {
+    console.error('API Error (updateStudent):', err);
+    throw err;
   }
 }
