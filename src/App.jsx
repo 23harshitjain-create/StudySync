@@ -119,6 +119,7 @@ function MainApp() {
             onOpenAddTask={() => setIsAddTaskOpen(true)}
             onNavigateTab={(tab) => setActiveTab(tab)}
             onOpenGroup={handleOpenGroup}
+            onUpdateGroup={handleUpdateGroup}
           />
         )}
 
@@ -132,6 +133,7 @@ function MainApp() {
             onNavigateTab={(tab) => setActiveTab(tab)}
             onOpenGroup={handleOpenGroup}
             onOpenCreateGroup={handleOpenCreateGroup}
+            onUpdateGroup={handleUpdateGroup}
           />
         )}
 
@@ -140,6 +142,7 @@ function MainApp() {
             groups={groups}
             onJoinGroup={handleOpenGroup}
             onCreateGroup={handleOpenCreateGroup}
+            onUpdateGroup={handleUpdateGroup}
           />
         )}
 

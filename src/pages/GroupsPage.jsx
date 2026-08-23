@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import GroupCard from '../components/GroupCard';
 
-export default function GroupsPage({ groups, onJoinGroup, onCreateGroup }) {
+export default function GroupsPage({ groups, onJoinGroup, onCreateGroup, onUpdateGroup }) {
   const { currentStudent } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -81,9 +81,11 @@ export default function GroupsPage({ groups, onJoinGroup, onCreateGroup }) {
             <GroupCard
               key={group.id}
               group={group}
-              onJoin={() => {
-                alert(`Entered group "${group.name}"!\nInvite Code: ${group.inviteCode}`);
-                if (onJoinGroup) onJoinGroup(group);
+              onJoin={(selectedGroup) => {
+                if (onJoinGroup) onJoinGroup(selectedGroup);
+              }}
+              onUpdateGroup={(updatedGroup) => {
+                if (onUpdateGroup) onUpdateGroup(updatedGroup);
               }}
             />
           ))}

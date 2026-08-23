@@ -1,5 +1,6 @@
 import express from 'express';
 import { dataStore } from '../store/dataStore.js';
+import { generateStudyBotReplyAsync, fetchResourceContent } from '../services/studyBotService.js';
 
 const router = express.Router();
 
@@ -84,6 +85,36 @@ router.post('/:id/join', (req, res) => {
   res.json({ success: true, group: result.group, alreadyJoined: result.alreadyJoined || false });
 });
 
+// POST leave group
+router.post('/:id/leave', (req, res) => {
+  const { studentId } = req.body;
+  if (!studentId) {
+    return res.status(400).json({ success: false, error: 'studentId is required' });
+  }
+
+  const result = dataStore.leaveGroup(req.params.id, studentId);
+  if (result.error) {
+    return res.status(400).json({ success: false, error: result.error });
+  }
+
+  res.json({ success: true, group: result.group });
+});
+
+// POST remove member by owner
+router.post('/:id/remove-member', (req, res) => {
+  const { targetStudentId, requesterId } = req.body;
+  if (!targetStudentId || !requesterId) {
+    return res.status(400).json({ success: false, error: 'targetStudentId and requesterId are required' });
+  }
+
+  const result = dataStore.removeMember(req.params.id, targetStudentId, requesterId);
+  if (result.error) {
+    return res.status(400).json({ success: false, error: result.error });
+  }
+
+  res.json({ success: true, group: result.group });
+});
+
 // PATCH toggle milestone
 router.patch('/:id/milestones/:milestoneId/toggle', (req, res) => {
   const updatedGroup = dataStore.toggleMilestone(req.params.id, req.params.milestoneId);
@@ -133,6 +164,55 @@ router.post('/:id/messages', (req, res) => {
     type: type || 'text'
   });
   res.status(201).json({ success: true, message: newMsg, messages: dataStore.getMessages(req.params.id) });
+});
+
+// POST StudyBot query with server-side resource fetching
+router.post('/:id/studybot', async (req, res) => {
+  const { query, studentId, studentName } = req.body;
+  if (!query || !query.trim()) {
+    return res.status(400).json({ success: false, error: 'Query is required' });
+  }
+
+  const group = dataStore.getGroupById(req.params.id);
+  if (!group) {
+    return res.status(404).json({ success: false, error: 'Group not found' });
+  }
+
+  let student = null;
+  if (studentId) {
+    student = dataStore.getStudentById(studentId);
+  }
+  if (!student && studentName) {
+    student = { name: studentName, id: studentId || 'student-1' };
+  }
+
+  try {
+    const botReply = await generateStudyBotReplyAsync({
+      query: query.trim(),
+      group,
+      currentStudent: student || { name: 'Student' }
+    });
+
+    res.json({ success: true, reply: botReply });
+  } catch (err) {
+    console.error('StudyBot Error:', err);
+    res.status(500).json({ success: false, error: 'Failed to process StudyBot query' });
+  }
+});
+
+// POST fetch resource text
+router.post('/fetch-resource', async (req, res) => {
+  const { url } = req.body;
+  if (!url) {
+    return res.status(400).json({ success: false, error: 'URL is required' });
+  }
+
+  try {
+    const result = await fetchResourceContent(url);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 export default router;

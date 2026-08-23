@@ -180,3 +180,73 @@ export async function updateStudent(studentId, updates) {
     throw err;
   }
 }
+
+export async function joinGroup(groupId, studentId) {
+  try {
+    const data = await safeFetchJson(`${BASE_URL}/groups/${groupId}/join`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ studentId })
+    });
+    return data;
+  } catch (err) {
+    console.error('API Error (joinGroup):', err);
+    throw err;
+  }
+}
+
+export async function leaveGroup(groupId, studentId) {
+  try {
+    const data = await safeFetchJson(`${BASE_URL}/groups/${groupId}/leave`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ studentId })
+    });
+    return data;
+  } catch (err) {
+    console.error('API Error (leaveGroup):', err);
+    throw err;
+  }
+}
+
+export async function removeGroupMember(groupId, targetStudentId, requesterId) {
+  try {
+    const data = await safeFetchJson(`${BASE_URL}/groups/${groupId}/remove-member`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetStudentId, requesterId })
+    });
+    return data;
+  } catch (err) {
+    console.error('API Error (removeGroupMember):', err);
+    throw err;
+  }
+}
+
+export async function queryStudyBot(groupId, { query, studentId, studentName }) {
+  try {
+    const data = await safeFetchJson(`${BASE_URL}/groups/${groupId}/studybot`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, studentId, studentName })
+    });
+    return data;
+  } catch (err) {
+    console.error('API Error (queryStudyBot):', err);
+    throw err;
+  }
+}
+
+export async function fetchResourceContent(url) {
+  try {
+    const data = await safeFetchJson(`${BASE_URL}/groups/fetch-resource`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    return data;
+  } catch (err) {
+    console.error('API Error (fetchResourceContent):', err);
+    return { success: false, error: err.message };
+  }
+}

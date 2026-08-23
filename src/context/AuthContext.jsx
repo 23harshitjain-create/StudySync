@@ -12,17 +12,37 @@ export function AuthProvider({ children }) {
   const [currentStudent, setCurrentStudent] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const STORAGE_KEY = 'studysync_current_student_id';
+
   // Load students from API on mount
   useEffect(() => {
     async function init() {
       try {
         const studentList = await fetchStudents();
-
         setStudents(studentList);
 
         if (studentList.length > 0) {
-          // Default to first student (Alex Rivera)
-          setCurrentStudent(studentList[0]);
+          // Check localStorage for previously selected student ID
+          let savedId = null;
+          try {
+            savedId = localStorage.getItem(STORAGE_KEY);
+          } catch (e) {
+            console.warn('Unable to read student ID from localStorage:', e);
+          }
+
+          const matchedStudent = savedId
+            ? studentList.find((s) => s.id === savedId)
+            : null;
+
+          if (matchedStudent) {
+            setCurrentStudent(matchedStudent);
+          } else {
+            // Default to first student if not found in storage
+            setCurrentStudent(studentList[0]);
+            try {
+              localStorage.setItem(STORAGE_KEY, studentList[0].id);
+            } catch (e) {}
+          }
         }
       } catch (err) {
         console.error('Failed to load students:', err);
@@ -34,12 +54,17 @@ export function AuthProvider({ children }) {
     init();
   }, []);
 
-  // Switch between student profiles
+  // Switch between student profiles & persist in localStorage
   const switchStudent = (studentId) => {
     const found = students.find((s) => s.id === studentId);
 
     if (found) {
       setCurrentStudent(found);
+      try {
+        localStorage.setItem(STORAGE_KEY, studentId);
+      } catch (e) {
+        console.warn('Unable to save student ID to localStorage:', e);
+      }
     }
   };
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, 
   Clock, 
@@ -9,11 +9,27 @@ import {
   Users, 
   CheckCircle,
   ArrowRight,
-  Zap
+  Zap,
+  UserPlus,
+  Check,
+  Loader2,
+  ExternalLink,
+  LogOut
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { joinGroup as joinGroupApi, leaveGroup as leaveGroupApi } from '../utils/api';
 
-export default function MatchCard({ match, onConnect }) {
+export default function MatchCard({ match, onConnect, onJoinGroup, onOpenGroup }) {
+  const { currentStudent } = useAuth();
   const [expanded, setExpanded] = useState(false);
+  const [joining, setJoining] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [joinedLocally, setJoinedLocally] = useState(null);
+
+  useEffect(() => {
+    setJoinedLocally(null);
+  }, [currentStudent?.id, match?.matchId, match?.targetGroup?.id]);
+
   const { type, targetStudent, targetTask, targetGroup, overallScore, breakdown, highlightReasons } = match;
 
   // Determine badge color based on compatibility score
@@ -25,6 +41,60 @@ export default function MatchCard({ match, onConnect }) {
   };
 
   const isGroup = type === 'group';
+
+  // Check if current student is already a member of this group
+  const isAlreadyMember = isGroup && (
+    joinedLocally === true || 
+    (joinedLocally !== false && targetGroup?.members?.some(m => m.studentId === currentStudent?.id))
+  );
+
+  const handleJoinClick = async (e) => {
+    e.stopPropagation();
+    if (!targetGroup?.id || !currentStudent?.id || joining || isAlreadyMember) return;
+
+    setJoining(true);
+    try {
+      const res = await joinGroupApi(targetGroup.id, currentStudent.id);
+      setJoinedLocally(true);
+      if (res?.group) {
+        if (onJoinGroup) onJoinGroup(res.group);
+      }
+    } catch (err) {
+      console.error('Failed to join group:', err);
+      alert('Failed to join group. Please try again.');
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  const handleLeaveClick = async (e) => {
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to leave this group?")) return;
+    if (!targetGroup?.id || !currentStudent?.id || leaving) return;
+
+    setLeaving(true);
+    try {
+      const res = await leaveGroupApi(targetGroup.id, currentStudent.id);
+      setJoinedLocally(false);
+      if (res?.group && onJoinGroup) {
+        onJoinGroup(res.group);
+      }
+    } catch (err) {
+      console.error('Failed to leave group:', err);
+      alert('Failed to leave group. Please try again.');
+    } finally {
+      setLeaving(false);
+    }
+  };
+
+  const handleOpenClick = () => {
+    if (isGroup && targetGroup) {
+      if (onOpenGroup) onOpenGroup(targetGroup);
+      else if (onConnect) onConnect(match);
+    } else {
+      if (onConnect) onConnect(match);
+    }
+  };
 
   return (
     <div className="glass-card rounded-2xl p-5 border border-slate-800 transition-all hover:border-brand-500/40">
@@ -63,7 +133,7 @@ export default function MatchCard({ match, onConnect }) {
 
             <p className="text-xs text-slate-400 mt-0.5">
               {isGroup 
-                ? `${targetGroup?.courseCode} • ${targetGroup?.members?.length}/${targetGroup?.maxCapacity} Members`
+                ? `${targetGroup?.courseCode} • ${(targetGroup?.members?.length || 0) + (joinedLocally && !targetGroup?.members?.some(m => m.studentId === currentStudent?.id) ? 1 : 0)}/${targetGroup?.maxCapacity || 4} Members`
                 : `${targetStudent?.major} • ${targetStudent?.year}`}
             </p>
           </div>
@@ -127,7 +197,7 @@ export default function MatchCard({ match, onConnect }) {
         </div>
       )}
 
-      {/* Expandable Factor Breakdown (30% Course, 25% Topic, 20% Deadline, 15% Avail, 10% Pref) */}
+      {/* Expandable Factor Breakdown */}
       {breakdown && (
         <div className="mt-4 pt-3 border-t border-slate-800/80">
           <button
@@ -140,7 +210,6 @@ export default function MatchCard({ match, onConnect }) {
 
           {expanded && (
             <div className="mt-3 space-y-2.5 text-xs animate-in fade-in slide-in-from-top-1">
-              
               {/* Factor 1: Course & Task (30%) */}
               <div>
                 <div className="flex justify-between text-slate-300 mb-1">
@@ -195,35 +264,93 @@ export default function MatchCard({ match, onConnect }) {
                   <div className="h-full bg-purple-500 rounded-full" style={{ width: `${breakdown.studyPreferences}%` }} />
                 </div>
               </div>
-
             </div>
           )}
         </div>
       )}
 
       {/* Action Footer */}
-      <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between">
+      <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between gap-2">
         {!isGroup && targetStudent && (
           <div className="text-[11px] text-slate-400 flex items-center space-x-1.5">
-            <Clock className="w-3.5 h-3.5 text-brand-400" />
-            <span>Prefers: {targetStudent.preferredTimes?.slice(0, 2).join(', ')}</span>
+            <Clock className="w-3.5 h-3.5 text-brand-400 flex-shrink-0" />
+            <span className="truncate">Prefers: {targetStudent.preferredTimes?.slice(0, 2).join(', ')}</span>
           </div>
         )}
         
         {isGroup && (
           <div className="text-[11px] text-slate-400 flex items-center space-x-1.5">
-            <Users className="w-3.5 h-3.5 text-indigo-400" />
-            <span>{targetGroup?.milestones?.filter(m => m.completed).length || 0}/{targetGroup?.milestones?.length || 0} Milestones Done</span>
+            <Users className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
+            <span>{targetGroup?.milestones?.filter(m => m.completed).length || 0}/{targetGroup?.milestones?.length || 0} Milestones</span>
           </div>
         )}
 
-        <button
-          onClick={() => onConnect && onConnect(match)}
-          className="ml-auto flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold shadow-md shadow-brand-600/20 transition-all hover:scale-[1.02]"
-        >
-          <span>{isGroup ? 'Join Group' : 'Study Together'}</span>
-          <ArrowRight className="w-3.5 h-3.5" />
-        </button>
+        <div className="ml-auto flex items-center space-x-2 flex-shrink-0">
+          {isGroup ? (
+            <>
+              {/* View Group Button */}
+              <button
+                type="button"
+                onClick={handleOpenClick}
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-surface-900 hover:bg-surface-800 text-slate-300 hover:text-white border border-slate-800 text-xs font-semibold transition"
+              >
+                <span>View Group</span>
+              </button>
+
+              {/* Join Group Button / Joined + Leave Action */}
+              {isAlreadyMember ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleOpenClick}
+                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition hover:bg-emerald-500/30"
+                  >
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Joined</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleLeaveClick}
+                    disabled={leaving}
+                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-semibold transition disabled:opacity-50"
+                    title="Leave group"
+                  >
+                    <LogOut className="w-3.5 h-3.5 text-rose-400" />
+                    <span>{leaving ? 'Leaving...' : 'Leave'}</span>
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleJoinClick}
+                  disabled={joining}
+                  className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition-all hover:scale-[1.02] disabled:opacity-50"
+                >
+                  {joining ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Joining...</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="w-3.5 h-3.5" />
+                      <span>Join Group</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </>
+          ) : (
+            <button
+              onClick={handleOpenClick}
+              className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold shadow-md shadow-brand-600/20 transition-all hover:scale-[1.02]"
+            >
+              <span>Study Together</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
     </div>

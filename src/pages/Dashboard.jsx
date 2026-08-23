@@ -24,7 +24,8 @@ export default function Dashboard({
   onFindPartnersForAssignment, 
   onOpenAddTask, 
   onNavigateTab,
-  onOpenGroup
+  onOpenGroup,
+  onUpdateGroup
 }) {
   const { currentStudent } = useAuth();
 
@@ -223,6 +224,12 @@ export default function Dashboard({
               <MatchCard
                 key={match.matchId || idx}
                 match={match}
+                onJoinGroup={(updatedGroup) => {
+                  if (onUpdateGroup) onUpdateGroup(updatedGroup);
+                }}
+                onOpenGroup={(targetGroup) => {
+                  if (onOpenGroup) onOpenGroup(targetGroup);
+                }}
                 onConnect={() => onNavigateTab('find-partners')}
               />
             ))}
@@ -255,9 +262,11 @@ export default function Dashboard({
             <GroupCard
               key={group.id}
               group={group}
-              onJoin={() => {
-                alert(`Entered group "${group.name}"!\nInvite Code: ${group.inviteCode}`);
-                if (onOpenGroup) onOpenGroup(group);
+              onJoin={(selectedGroup) => {
+                if (onOpenGroup) onOpenGroup(selectedGroup);
+              }}
+              onUpdateGroup={(updatedGroup) => {
+                if (onUpdateGroup) onUpdateGroup(updatedGroup);
               }}
             />
           ))}

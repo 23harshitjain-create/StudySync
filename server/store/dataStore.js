@@ -164,6 +164,71 @@ class DataStore {
     return { group, success: true };
   }
 
+  leaveGroup(groupId, studentId) {
+    const group = this.getGroupById(groupId);
+    if (!group) return { error: "Group not found" };
+
+    const memberIdx = group.members.findIndex(m => m.studentId === studentId);
+    if (memberIdx === -1) {
+      return { error: "Student is not a member of this group" };
+    }
+
+    const removedMember = group.members[memberIdx];
+    group.members.splice(memberIdx, 1);
+
+    // Reassign any milestones assigned to this student
+    if (group.milestones) {
+      group.milestones.forEach(m => {
+        if (m.assignedTo && (
+          m.assignedTo.toLowerCase() === (removedMember.name || '').toLowerCase() ||
+          m.assignedTo === studentId
+        )) {
+          m.assignedTo = 'Unassigned';
+        }
+      });
+    }
+
+    return { group, success: true };
+  }
+
+  removeMember(groupId, targetStudentId, requesterId) {
+    const group = this.getGroupById(groupId);
+    if (!group) return { error: "Group not found" };
+
+    // Verify requester is owner or admin
+    const requester = group.members.find(m => m.studentId === requesterId);
+    const isOwner = group.createdById === requesterId || requester?.role === 'Admin';
+    if (!isOwner) {
+      return { error: "Only the group owner/admin can remove members" };
+    }
+
+    if (group.createdById === targetStudentId) {
+      return { error: "Owner cannot remove themselves from the group" };
+    }
+
+    const memberIdx = group.members.findIndex(m => m.studentId === targetStudentId);
+    if (memberIdx === -1) {
+      return { error: "Target student is not a member of this group" };
+    }
+
+    const removedMember = group.members[memberIdx];
+    group.members.splice(memberIdx, 1);
+
+    // Reassign milestones assigned to this member
+    if (group.milestones) {
+      group.milestones.forEach(m => {
+        if (m.assignedTo && (
+          m.assignedTo.toLowerCase() === (removedMember.name || '').toLowerCase() ||
+          m.assignedTo === targetStudentId
+        )) {
+          m.assignedTo = 'Unassigned';
+        }
+      });
+    }
+
+    return { group, success: true };
+  }
+
   toggleMilestone(groupId, milestoneId) {
     const group = this.getGroupById(groupId);
     if (!group) return null;
@@ -173,13 +238,26 @@ class DataStore {
 
     milestone.completed = !milestone.completed;
 
-    // Recalculate member progress proportionally
+    // Recalculate member progress
     const total = group.milestones.length;
     const completed = group.milestones.filter(m => m.completed).length;
-    const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
-    
+    const overallProgressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
     group.members.forEach(member => {
-      member.progress = progressPercent;
+      const assigned = group.milestones.filter(m =>
+        m.assignedTo && (
+          m.assignedTo.toLowerCase() === member.name.toLowerCase() ||
+          m.assignedTo.toLowerCase() === (member.studentId || '').toLowerCase()
+        )
+      );
+
+      if (assigned.length > 0) {
+        const memberCompleted = assigned.filter(m => m.completed).length;
+        member.progress = Math.round((memberCompleted / assigned.length) * 100);
+      } else {
+        // If no specifically assigned tasks, share the group's overall progress
+        member.progress = overallProgressPercent;
+      }
     });
 
     return group;

@@ -22,7 +22,8 @@ export default function FindPartners({
   onSelectAssignment, 
   onNavigateTab,
   onOpenGroup,
-  onOpenCreateGroup
+  onOpenCreateGroup,
+  onUpdateGroup
 }) {
   const { currentStudent } = useAuth();
   const [filterType, setFilterType] = useState('all'); // 'all', 'high-match', 'peers', 'groups'
@@ -98,44 +99,44 @@ export default function FindPartners({
       {/* Algorithm Weights & Transparency Box */}
       <div className="glass-panel p-4 rounded-2xl border border-slate-800/80 bg-surface-950/60">
         <div className="flex items-center space-x-2 text-xs font-semibold text-slate-300 mb-2">
-          <Info className="w-4 h-4 text-brand-400" />
-          <span>Deterministic 5-Factor Weighted Compatibility Model:</span>
+          <SlidersHorizontal className="w-3.5 h-3.5 text-brand-400" />
+          <span>Multi-Factor Compatibility Weights:</span>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
-          <div className="p-2 rounded-xl bg-surface-900/80 border border-slate-800">
-            <p className="text-[11px] text-slate-400">Course & Task</p>
-            <p className="font-bold text-brand-400 font-display">30% Weight</p>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-[11px]">
+          <div className="bg-surface-900/90 p-2 rounded-xl border border-slate-800/80">
+            <p className="text-slate-400">Course & Task</p>
+            <p className="font-bold text-brand-300">30% Weight</p>
           </div>
-          <div className="p-2 rounded-xl bg-surface-900/80 border border-slate-800">
-            <p className="text-[11px] text-slate-400">Topic Jaccard</p>
-            <p className="font-bold text-indigo-400 font-display">25% Weight</p>
+          <div className="bg-surface-900/90 p-2 rounded-xl border border-slate-800/80">
+            <p className="text-slate-400">Topic Overlap</p>
+            <p className="font-bold text-indigo-300">25% Weight</p>
           </div>
-          <div className="p-2 rounded-xl bg-surface-900/80 border border-slate-800">
-            <p className="text-[11px] text-slate-400">Deadline Closeness</p>
-            <p className="font-bold text-amber-400 font-display">20% Weight</p>
+          <div className="bg-surface-900/90 p-2 rounded-xl border border-slate-800/80">
+            <p className="text-slate-400">Deadline Urgency</p>
+            <p className="font-bold text-amber-300">20% Weight</p>
           </div>
-          <div className="p-2 rounded-xl bg-surface-900/80 border border-slate-800">
-            <p className="text-[11px] text-slate-400">Study Slots</p>
-            <p className="font-bold text-teal-400 font-display">15% Weight</p>
+          <div className="bg-surface-900/90 p-2 rounded-xl border border-slate-800/80">
+            <p className="text-slate-400">Availability</p>
+            <p className="font-bold text-teal-300">15% Weight</p>
           </div>
-          <div className="p-2 rounded-xl bg-surface-900/80 border border-slate-800">
-            <p className="text-[11px] text-slate-400">Style & Goals</p>
-            <p className="font-bold text-purple-400 font-display">10% Weight</p>
+          <div className="bg-surface-900/90 p-2 rounded-xl border border-slate-800/80">
+            <p className="text-slate-400">Study Style</p>
+            <p className="font-bold text-purple-300">10% Weight</p>
           </div>
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+      {/* Filter Tabs & Course Dropdown */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface-900/60 p-2 rounded-2xl border border-slate-800">
         
-        {/* Quick Filter Buttons */}
-        <div className="flex flex-wrap items-center gap-1.5 bg-surface-900 p-1 rounded-xl border border-slate-800">
+        {/* Type Filter Buttons */}
+        <div className="flex items-center space-x-1 overflow-x-auto">
           {[
             { id: 'all', label: 'All Matches', count: matches.length },
-            { id: 'high-match', label: '🔥 High Match (>75%)', count: matches.filter(m => m.overallScore >= 75).length },
-            { id: 'peers', label: 'Individual Peers', count: matches.filter(m => m.type === 'peer').length },
-            { id: 'groups', label: 'Active Study Groups', count: matches.filter(m => m.type === 'group').length },
-          ].map(tab => (
+            { id: 'high-match', label: 'High Compatibility (>75%)', count: matches.filter(m => m.overallScore >= 75).length },
+            { id: 'peers', label: 'Peers', count: matches.filter(m => m.type === 'peer').length },
+            { id: 'groups', label: 'Study Groups', count: matches.filter(m => m.type === 'group').length },
+          ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setFilterType(tab.id)}
@@ -151,7 +152,7 @@ export default function FindPartners({
         </div>
 
         {/* Course Filter Dropdown */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 px-2">
           <Filter className="w-4 h-4 text-slate-500" />
           <select
             value={courseFilter}
@@ -186,13 +187,16 @@ export default function FindPartners({
             <MatchCard
               key={match.matchId || idx}
               match={match}
+              onJoinGroup={(updatedGroup) => {
+                if (onUpdateGroup) onUpdateGroup(updatedGroup);
+              }}
+              onOpenGroup={(targetGroup) => {
+                if (onOpenGroup) onOpenGroup(targetGroup);
+              }}
               onConnect={() => {
                 if (match.type === 'group' && match.targetGroup) {
-                  alert(`Entered group "${match.targetGroup.name}"!\nInvite Code: ${match.targetGroup.inviteCode}`);
                   if (onOpenGroup) onOpenGroup(match.targetGroup);
                 } else {
-                  alert(`Connected with ${match.targetStudent?.name} for ${match.targetTask?.courseCode}!\nYou can now create a study sprint together.`);
-                  
                   const targetCode = (match.targetTask?.courseCode || '').trim().toUpperCase();
                   const existingGroup = (groups || []).find(g => (g.courseCode || '').trim().toUpperCase() === targetCode);
 

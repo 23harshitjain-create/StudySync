@@ -17,10 +17,13 @@ import {
   Layers, 
   Paperclip,
   Flame,
-  Award
+  Award,
+  LogOut,
+  UserMinus,
+  UserPlus
 } from 'lucide-react';
 import { generateStudyBotReply } from '../utils/studyBot';
-import { BASE_URL } from '../utils/api';
+import { BASE_URL, leaveGroup as leaveGroupApi, removeGroupMember as removeGroupMemberApi, joinGroup as joinGroupApi } from '../utils/api';
 
 export default function GroupView({ group, onBack, onUpdateGroup }) {
   const { currentStudent } = useAuth();
@@ -238,7 +241,7 @@ export default function GroupView({ group, onBack, onUpdateGroup }) {
       content.toLowerCase() === 'hello'
     ) {
       setTimeout(async () => {
-        const botContent = generateStudyBotReply({
+        const botContent = await generateStudyBotReply({
           query: content,
           group: activeGroup,
           currentStudent: currentStudent || { name: 'Alex Rivera' },
@@ -267,7 +270,65 @@ export default function GroupView({ group, onBack, onUpdateGroup }) {
         } catch (err) {
           console.error('Failed to persist bot message:', err);
         }
-      }, 400);
+      }, 300);
+    }
+  };
+
+  const isMember = activeGroup?.members?.some(m => m.studentId === currentStudent?.id);
+  const isOwner = activeGroup?.createdById === currentStudent?.id || activeGroup?.members?.find(m => m.studentId === currentStudent?.id)?.role === 'Admin';
+  const [leavingGroup, setLeavingGroup] = useState(false);
+  const [removingMemberId, setRemovingMemberId] = useState(null);
+
+  const handleLeaveGroup = async () => {
+    if (!window.confirm("Are you sure you want to leave this group?")) return;
+    if (!activeGroup?.id || !currentStudent?.id || leavingGroup) return;
+
+    setLeavingGroup(true);
+    try {
+      const res = await leaveGroupApi(activeGroup.id, currentStudent.id);
+      if (res?.group) {
+        setActiveGroup(res.group);
+        if (onUpdateGroup) onUpdateGroup(res.group);
+      }
+      if (onBack) onBack();
+    } catch (err) {
+      console.error('Failed to leave group:', err);
+      alert('Failed to leave group. Please try again.');
+    } finally {
+      setLeavingGroup(false);
+    }
+  };
+
+  const handleRemoveMember = async (targetStudentId, targetMemberName) => {
+    if (!window.confirm("Remove this member from the group?")) return;
+    if (!activeGroup?.id || !targetStudentId || !currentStudent?.id || removingMemberId) return;
+
+    setRemovingMemberId(targetStudentId);
+    try {
+      const res = await removeGroupMemberApi(activeGroup.id, targetStudentId, currentStudent.id);
+      if (res?.group) {
+        setActiveGroup(res.group);
+        if (onUpdateGroup) onUpdateGroup(res.group);
+      }
+    } catch (err) {
+      console.error('Failed to remove member:', err);
+      alert('Failed to remove member. Please try again.');
+    } finally {
+      setRemovingMemberId(null);
+    }
+  };
+
+  const handleJoinGroup = async () => {
+    if (!activeGroup?.id || !currentStudent?.id) return;
+    try {
+      const res = await joinGroupApi(activeGroup.id, currentStudent.id);
+      if (res?.group) {
+        setActiveGroup(res.group);
+        if (onUpdateGroup) onUpdateGroup(res.group);
+      }
+    } catch (err) {
+      console.error('Failed to join group:', err);
+      alert('Failed to join group. Please try again.');
     }
   };
 
@@ -308,8 +369,8 @@ export default function GroupView({ group, onBack, onUpdateGroup }) {
           </div>
         </div>
 
-        {/* Action Controls (Invite Code & Copy Link) */}
-        <div className="flex items-center space-x-2.5">
+        {/* Action Controls (Invite Code, Copy Link & Leave/Join Group) */}
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-surface-900 border border-slate-800 text-xs font-mono text-slate-300">
             <span className="text-slate-500 font-sans">Code:</span>
             <span className="text-brand-400 font-bold">{activeGroup.inviteCode}</span>
@@ -322,6 +383,26 @@ export default function GroupView({ group, onBack, onUpdateGroup }) {
             <Share2 className="w-3.5 h-3.5" />
             <span>{copiedLink ? 'Copied Link!' : 'Share Room'}</span>
           </button>
+
+          {isMember ? (
+            <button
+              onClick={handleLeaveGroup}
+              disabled={leavingGroup}
+              className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-semibold transition disabled:opacity-50"
+              title="Leave this study group"
+            >
+              <LogOut className="w-3.5 h-3.5 text-rose-400" />
+              <span>{leavingGroup ? 'Leaving...' : 'Leave Group'}</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleJoinGroup}
+              className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>Join Group</span>
+            </button>
+          )}
         </div>
 
       </div>
@@ -502,41 +583,115 @@ export default function GroupView({ group, onBack, onUpdateGroup }) {
 
           </div>
 
-          {/* Active Members Roster */}
-          <div className="glass-panel p-5 sm:p-6 rounded-3xl border border-slate-800">
-            <div className="flex items-center justify-between mb-3">
+          {/* Active Members Roster & Progress */}
+          <div className="glass-panel p-5 sm:p-6 rounded-3xl border border-slate-800 space-y-3.5">
+            <div className="flex items-center justify-between">
               <h2 className="text-base font-bold text-white font-display flex items-center space-x-2">
                 <Users className="w-4 h-4 text-indigo-400" />
-                <span>Group Members ({activeGroup.members?.length}/{activeGroup.maxCapacity || 4})</span>
+                <span>Group Members ({activeGroup.members?.length || 0}/{activeGroup.maxCapacity || 4})</span>
               </h2>
+              <span className="text-[11px] text-slate-400">
+                Individual Sprint Contributions
+              </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {activeGroup.members?.map((member, idx) => (
-                <div key={idx} className="flex items-center space-x-3 p-2.5 rounded-xl bg-surface-900/80 border border-slate-800">
-                  <div className="relative">
-                    <img
-                      src={member.avatar}
-                      alt={member.name}
-                      className="w-9 h-9 rounded-xl object-cover border border-slate-700"
-                    />
-                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-surface-950" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-1.5">
-                      <p className="text-xs font-semibold text-white truncate">{member.name}</p>
-                      {member.role === 'Admin' && (
-                        <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                          Admin
-                        </span>
-                      )}
+            <div className="space-y-2.5">
+              {activeGroup.members?.map((member, idx) => {
+                // Calculate dynamic progress for this member based on assigned tasks or recorded progress
+                const assignedMilestones = activeGroup.milestones?.filter(m =>
+                  m.assignedTo && (
+                    m.assignedTo.toLowerCase() === member.name.toLowerCase() ||
+                    m.assignedTo.toLowerCase() === (member.studentId || '').toLowerCase()
+                  )
+                ) || [];
+
+                let memberProgressPercent = 0;
+                let progressSubtitle = 'Sprint Member';
+
+                if (assignedMilestones.length > 0) {
+                  const completedCount = assignedMilestones.filter(m => m.completed).length;
+                  memberProgressPercent = Math.round((completedCount / assignedMilestones.length) * 100);
+                  progressSubtitle = `${completedCount}/${assignedMilestones.length} assigned deliverables done`;
+                } else if (member.progress !== undefined && member.progress !== null) {
+                  memberProgressPercent = member.progress;
+                  progressSubtitle = `${memberProgressPercent}% sprint milestones complete`;
+                } else {
+                  memberProgressPercent = 0;
+                  progressSubtitle = 'Newly joined';
+                }
+
+                return (
+                  <div 
+                    key={member.studentId || idx} 
+                    className="p-3 rounded-2xl bg-surface-900/80 border border-slate-800 space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3 min-w-0">
+                        <div className="relative flex-shrink-0">
+                          <img
+                            src={member.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+                            alt={member.name}
+                            className="w-9 h-9 rounded-xl object-cover border border-slate-700"
+                          />
+                          <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-surface-950" />
+                        </div>
+
+                        <div className="min-w-0">
+                          <div className="flex items-center space-x-1.5">
+                            <p className="text-xs font-bold text-white truncate">{member.name}</p>
+                            {member.role === 'Admin' ? (
+                              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                Admin
+                              </span>
+                            ) : (
+                              <span className="text-[9px] font-medium px-1.5 py-0.2 rounded bg-surface-800 text-slate-400 border border-slate-700">
+                                Member
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-slate-400 mt-0.5 truncate">
+                            {progressSubtitle}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Owner Remove Action & Percentage Badge */}
+                      <div className="flex items-center space-x-2.5 flex-shrink-0 pl-2">
+                        {isOwner && member.studentId !== currentStudent?.id && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveMember(member.studentId, member.name)}
+                            disabled={removingMemberId === member.studentId}
+                            className="flex items-center space-x-1 px-2 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-[10px] font-semibold transition disabled:opacity-50"
+                            title={`Remove ${member.name} from group`}
+                          >
+                            <UserMinus className="w-3 h-3 text-rose-400" />
+                            <span>{removingMemberId === member.studentId ? 'Removing...' : 'Remove'}</span>
+                          </button>
+                        )}
+
+                        <div className="text-right">
+                          <span className={`text-xs font-bold font-display ${
+                            memberProgressPercent >= 70 ? 'text-emerald-400' : memberProgressPercent >= 30 ? 'text-brand-300' : 'text-slate-400'
+                          }`}>
+                            {memberProgressPercent}%
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-[10px] text-slate-400">
-                      Progress: <span className="text-emerald-400 font-medium">{member.progress || 0}%</span>
-                    </p>
+
+                    {/* Member Progress Bar */}
+                    <div className="w-full h-1.5 bg-surface-950 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          memberProgressPercent >= 70 ? 'bg-emerald-500' : memberProgressPercent >= 30 ? 'bg-brand-500' : 'bg-slate-600'
+                        }`}
+                        style={{ width: `${Math.max(memberProgressPercent, 0)}%` }}
+                      />
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
